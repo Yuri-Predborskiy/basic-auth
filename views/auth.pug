@@ -1,0 +1,14 @@
+extends layout
+// work in progress
+h1 Register
+form(method='POST' action='/register')
+    div.form-group
+        label(for='userId') User ID:
+        input#userId.form-control(type='text', placeholder='User ID' name='userId')
+    div.form-group
+        label(for='pw') Password:
+        input#pw.form-control(type='password' name='password')
+    div.form-group
+        label(for='pw2') Confirm Password:
+        input#pw2.form-control(type='password' name='confirmPassword')
+    button(type='submit') Sign up

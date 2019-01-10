@@ -1,0 +1,14 @@
+html
+    head
+        title= title
+    body
+        h1 Log In
+        form(method='POST' action='/register')
+            div.form-group
+                label(for='username') Username
+                input.form-control(type='text' id='username' placeholder='User ID' name='username')
+            div.form-group
+                label(for='password') Password
+                input.form-control(type='password' id='password' placeholder='Password' name='password')
+            button(type='submit') Log in
+
