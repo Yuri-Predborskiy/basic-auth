@@ -3,7 +3,7 @@ const fs = require('fs');
 
 const DATA_FILE_PATH = 'data/data.json';
 
-// todo: replace file read/write operations with mongodb calls
+// you may want to replace file read/write operations with database calls
 
 // typically you'd want to send the error down the middleware chain
 function getData() {
@@ -25,72 +25,80 @@ function writeData(data) {
     if (!data) return;
     try {
         fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data));
+        return true;
     } catch (err) {
         console.error('error writing new data to file...', err);
+        return false;
     }
 }
 
-function getById(req, res) {
+function getById(userId) {
     let data = getData();
-    if (data[req.user]) {
-        res.send(user);
+    if (data[userId]) {
+        return data[userId];
     } else {
-        res.status(404);
+        return null;
     }
 }
 
-function getAll(req, res) {
-    let data = getData();
-    res.send(JSON.stringify(data));
+function getAll() {
+    return getData();
 }
 
 // todo: improvement - generate user ID dynamically (UUID) or use simple numeric index
-function create(req, res) {
+function create(user) {
     let data = getData();
-    let userId = req.body.username;
-    if (data[userId]) {
-        res.send('this user already exists!');
+    if (data[user.id]) {
+        return false;
+    }
+    // todo: hash password using bcrypt
+    data[user.id] = {
+        username: user.name,
+        password: user.password // never save user password as plain text!
+    };
+    if (writeData(data)) {
+        return true;
     } else {
-        data[userId] = {
-            username: userId, // username = user id
-            password: req.body.password // never save user password as plain text!
-        };
-        writeData(data);
-        res.send('success');
+        console.log('user creation failed');
+        return false;
     }
 }
 
 // todo: add typical checks, like checking if username is not null
-function updateById(req, res) {
+function updateById(user) {
+    // a better way to handle this kind of call:
+    // use callback here that accepts two parameters: error, result
+    // if there is error, report to client
+    // if there is no error but success is false, report to user about failure
+    // if there is no error and success === true, report to user about success
+    // callback should be handled in another file, this should only call callback with (err, result)
     let data = getData();
-    let userId = req.params.id;
-    if (!data[userId]) {
-        res.status(404);
-    } else {
-        // todo: add more fields to update, currently user name is fixed, only password can be changed
-        data[userId] = {
-            password: req.body.password
-        };
-        writeData(data);
-        res.send('success');
+    if (!data[user.id]) {
+        console.log(`failed to update user id ${userId}, user does not exist`);
+        return false;
     }
+
+    data[user.id].password = user.password;
+    if (!writeData(data)) {
+        console.log(`failed to write new user data for user id ${userId}`);
+        return false;
+    }
+    return true;
 }
 
 // todo: add error description - what failed, or send error down the middleware string
-function deleteById(req, res) {
+function deleteById(userId) {
     let data = getData();
-    let userId = req.body.username;
-    if (!data[userId]) {
-        res.status(404).send('this user does not exist');
-    } else {
+    if (data[userId]) {
         delete data[userId];
-        if (writeData()) {
-            res.redirect('/auth');
-        } else {
-            console.log('failed to delete user', userId);
-            res.send(`error deleting user ${userId}`);
+        if (!writeData(data)) {
+            console.log(`failed to save data after deleting user id ${userId}`);
+            return false;
         }
     }
+    // if data doesn't contain userId, then result = desired result
+    // potentially you want to handle this differently
+    return true;
 }
 
 module.exports = {
