@@ -1,6 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-//const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 
 const userController = require('./users/user.controller');
 
@@ -31,15 +31,51 @@ router.get('/', (req, res) => {
 router.get('/register', (req, res) => {
     res.render('register');
 });
+
 // ideally you want to validate the parameters here, before moving on to controller
-router.post('/register', userController.create);
+router.post('/register', (req, res) => {
+    let user = userController.getById(req.body.username);
+    // user should not exist
+    if (user) {
+        return res.send(`User ${user.username} already exists! Do you want to <a href=${req.protocol + '://' + req.get('host')}/auth>log in</a>?`);
+    }
+
+    user = {
+        username: req.body.username,
+        password: req.body.password
+    };
+
+    let success = userController.create(user);
+    if (success) {
+        res.send(`User successfully created! You can now <a href=${req.protocol + '://' + req.get('host')}/auth>log in</a>`);
+    } else {
+        res.send('User creation failed, contact webmaster for details');
+    }
+});
 
 router.get('/auth', (req, res) => {
     res.render('auth');
 });
+
 // ideally you want to validate the parameters here, before moving on to controller
 router.post('/auth', (req, res) => {
-    // todo: authenticate user, if user is correct, redirect to users/id/:id
+    let user = userController.getById(req.body.username);
+    if (!user) {
+        res.status(404).send(`User ${req.body.username} not found. Would you like to /register ?`);
+    }
+
+    if (user.password === req.body.password) {
+        const payload = { username: req.body.username };
+        let token = jwt.sign(payload, secret, {
+            expiresInMinutes: 1440 // expires in 24 hours
+        });
+
+        res.json({
+            success: true,
+            message: 'Token successfully created',
+            token: token
+        });
+    }
 });
 
 // further paths require user to be authorized
@@ -49,8 +85,8 @@ router.get('/users/id/:id', userController.getById);
 router.put('/users/id/:id', userController.updateById);
 router.delete('/users/id/:id', userController.deleteById);
 
-// error handler, dead end
-app.use(function (err, req, res, next) {
+// error handler, dead end - no next
+app.use(function (err, req, res) {
     if (err.name === 'UnauthorizedError') {
         res.status(401);
     }

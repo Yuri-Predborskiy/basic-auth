@@ -48,12 +48,12 @@ function getAll() {
 // todo: improvement - generate user ID dynamically (UUID) or use simple numeric index
 function create(user) {
     let data = getData();
-    if (data[user.id]) {
+    if (data[user.username]) {
         return false;
     }
     // todo: hash password using bcrypt
-    data[user.id] = {
-        username: user.name,
+    data[user.username] = {
+        username: user.username,
         password: user.password // never save user password as plain text!
     };
     if (writeData(data)) {
