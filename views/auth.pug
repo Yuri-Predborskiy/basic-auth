@@ -6,8 +6,8 @@ html
         form(method='POST' action='/auth')
             div.form-group
                 label(for='username') Username
-                input.form-control(type='text' id='username' placeholder='User ID' name='username')
+                input.form-control(type='text' id='username' placeholder='User ID' name='username' required=true)
             div.form-group
                 label(for='password') Password
-                input.form-control(type='password' id='password' placeholder='Password' name='password')
+                input.form-control(type='password' id='password' placeholder='Password' name='password' required=true)
             button(type='submit') Log in

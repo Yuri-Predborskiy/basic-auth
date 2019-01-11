@@ -24,7 +24,7 @@ function getData() {
 function writeData(data) {
     if (!data) return;
     try {
-        fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data));
+        fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data, null, 2));
         return true;
     } catch (err) {
         console.error('error writing new data to file...', err);
@@ -65,6 +65,10 @@ function create(user) {
 }
 
 // todo: add typical checks, like checking if username is not null
+/** Update user if it exists. Example JSdoc
+ * @params  {object}    user        user object with updated fields
+ * @return  {boolean}               true if update is a success
+*/
 function updateById(user) {
     // a better way to handle this kind of call:
     // use callback here that accepts two parameters: error, result
@@ -73,14 +77,16 @@ function updateById(user) {
     // if there is no error and success === true, report to user about success
     // callback should be handled in another file, this should only call callback with (err, result)
     let data = getData();
-    if (!data[user.id]) {
-        console.log(`failed to update user id ${userId}, user does not exist`);
+    if (!data[user.username]) {
+        console.log(`failed to update user id ${user.username}, user does not exist`);
         return false;
     }
 
-    data[user.id].password = user.password;
+    // username is not update-able, it is used for reference only
+    // the only field we can change is password
+    data[user.username].password = user.password;
     if (!writeData(data)) {
-        console.log(`failed to write new user data for user id ${userId}`);
+        console.log(`failed to write new user data for user id ${user.username}`);
         return false;
     }
     return true;

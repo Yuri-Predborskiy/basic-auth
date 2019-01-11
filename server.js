@@ -59,15 +59,18 @@ router.get('/auth', (req, res) => {
 
 // ideally you want to validate the parameters here, before moving on to controller
 router.post('/auth', (req, res) => {
+    // primitive validation
+    if (!req.body || !req.body.username || !req.body.password) { return res.send('All fields are required!'); }
+
     let user = userController.getById(req.body.username);
-    if (!user) {
-        res.status(404).send(`User ${req.body.username} not found. Would you like to /register ?`);
+    if (!user || user.password !== req.body.password) {
+        return res.status(401).send(`Authorization failed, incorrect login/password`);
     }
 
     if (user.password === req.body.password) {
         const payload = { username: req.body.username };
         let token = jwt.sign(payload, secret, {
-            expiresInMinutes: 1440 // expires in 24 hours
+            expiresIn : 24*60*60 // 24 hours
         });
 
         res.json({
@@ -80,20 +83,39 @@ router.post('/auth', (req, res) => {
 
 // further paths require user to be authorized
 app.use('/users', authRouter);
-router.get('/users/all', userController.getAll);
-router.get('/users/id/:id', userController.getById);
-router.put('/users/id/:id', userController.updateById);
-router.delete('/users/id/:id', userController.deleteById);
+// todo: check if authentication token is valid
+authRouter.get('/all', (req, res) => {
+    res.json(userController.getAll());
+});
+authRouter.get('/id/:id', (req, res) => {
+    if (!req.params.id) { return res.send({}); }
+    let user = userController.getById(req.params.id);
+    // strip fields you don't want to show
+    delete user.password;
+    res.send(user);
+});
+authRouter.put('/', (req, res) => {
+    let user = {
+        username: req.body.username,
+        password: req.body.password
+    };
+    let success = userController.updateById(user);
+    return res.json({ success });
+});
+authRouter.delete('/:userId', (req, res) => {
+    let success = userController.deleteById(req.params.userId);
+    res.json({ success });
+});
 
 // error handler, dead end - no next
-app.use(function (err, req, res) {
+app.use(function (err, req, res, next) {
+    // if (err.name === '')
     if (err.name === 'UnauthorizedError') {
-        res.status(401);
+        res.status(401).send('User is not authorized');
     }
     else {
-        // unexpected error
         console.error(err);
-        res.status(500);
+        res.status(404).send('This page does not exist');
     }
 });
 
