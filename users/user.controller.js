@@ -1,9 +1,10 @@
-// in prod: separate controller into database layer (model) and logic controller (and, possibly, request handler)
 const fs = require('fs');
 
 const DATA_FILE_PATH = 'data/data.json';
 
 // you may want to replace file read/write operations with database calls
+// benefit of file system: comes pre-installed
+// drawbacks: you have to save the data after every operation, in db you just perform the action itself
 
 // typically you'd want to send the error down the middleware chain
 function getData() {
@@ -34,11 +35,10 @@ function writeData(data) {
 
 function getById(userId) {
     let data = getData();
-    if (data[userId]) {
-        return data[userId];
-    } else {
+    if (!data[userId]) {
         return null;
     }
+    return data[userId];
 }
 
 function getAll() {
@@ -48,20 +48,23 @@ function getAll() {
 // todo: improvement - generate user ID dynamically (UUID) or use simple numeric index
 function create(user) {
     let data = getData();
+
+    // user already exists
     if (data[user.username]) {
         return false;
     }
+
     // todo: hash password using bcrypt
     data[user.username] = {
         username: user.username,
         password: user.password // never save user password as plain text!
     };
-    if (writeData(data)) {
-        return true;
-    } else {
+
+    if (!writeData(data)) {
         console.log('user creation failed');
         return false;
     }
+    return true;
 }
 
 // todo: add typical checks, like checking if username is not null
@@ -70,20 +73,14 @@ function create(user) {
  * @return  {boolean}               true if update is a success
 */
 function updateById(user) {
-    // a better way to handle this kind of call:
-    // use callback here that accepts two parameters: error, result
-    // if there is error, report to client
-    // if there is no error but success is false, report to user about failure
-    // if there is no error and success === true, report to user about success
-    // callback should be handled in another file, this should only call callback with (err, result)
     let data = getData();
+
+    // potentially limit user from modifying other users
     if (!data[user.username]) {
         console.log(`failed to update user id ${user.username}, user does not exist`);
         return false;
     }
 
-    // username is not update-able, it is used for reference only
-    // the only field we can change is password
     data[user.username].password = user.password;
     if (!writeData(data)) {
         console.log(`failed to write new user data for user id ${user.username}`);
@@ -102,7 +99,7 @@ function deleteById(userId) {
             return false;
         }
     }
-    // if data doesn't contain userId, then result = desired result
+    // if data doesn't contain userId, then result = desired result (user id does not exist)
     // potentially you want to handle this differently
     return true;
 }

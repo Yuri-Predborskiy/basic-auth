@@ -1,20 +1,19 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
-
+const { authenticateUser } = require('./api/auth.controller');
 const userController = require('./users/user.controller');
+const authRouter = require('./api/router');
 
 const app = express();
 // todo: move router into a separate file
 const router = express.Router();
-// todo: move authRouter into a separate file
-const authRouter = express.Router();
+// const authRouter = express.Router();
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.set('view engine', 'pug');
-
-const secret = 'my dirty little secret';
 
 const logRequests = (req, res, next) => {
     console.info(`${req.method} ${req.originalUrl}`);
@@ -32,7 +31,7 @@ router.get('/register', (req, res) => {
     res.render('register');
 });
 
-// ideally you want to validate the parameters here, before moving on to controller
+// create - this route is not protected (otherwise nobody can register unless they're authenticated, which is a paradox
 router.post('/register', (req, res) => {
     let user = userController.getById(req.body.username);
     // user should not exist
@@ -45,12 +44,10 @@ router.post('/register', (req, res) => {
         password: req.body.password
     };
 
-    let success = userController.create(user);
-    if (success) {
-        res.send(`User successfully created! You can now <a href=${req.protocol + '://' + req.get('host')}/auth>log in</a>`);
-    } else {
-        res.send('User creation failed, contact webmaster for details');
+    if (!userController.create(user)) {
+        return res.send('User creation failed, contact webmaster for details');
     }
+    return res.send(`User successfully created! You can now <a href=${req.protocol + '://' + req.get('host')}/auth>log in</a>`);
 });
 
 router.get('/auth', (req, res) => {
@@ -69,7 +66,7 @@ router.post('/auth', (req, res) => {
 
     if (user.password === req.body.password) {
         const payload = { username: req.body.username };
-        let token = jwt.sign(payload, secret, {
+        let token = jwt.sign(payload, process.env.AUTH_SECRET, {
             expiresIn : 24*60*60 // 24 hours
         });
 
@@ -82,30 +79,7 @@ router.post('/auth', (req, res) => {
 });
 
 // further paths require user to be authorized
-app.use('/users', authRouter);
-// todo: check if authentication token is valid
-authRouter.get('/all', (req, res) => {
-    res.json(userController.getAll());
-});
-authRouter.get('/id/:id', (req, res) => {
-    if (!req.params.id) { return res.send({}); }
-    let user = userController.getById(req.params.id);
-    // strip fields you don't want to show
-    delete user.password;
-    res.send(user);
-});
-authRouter.put('/', (req, res) => {
-    let user = {
-        username: req.body.username,
-        password: req.body.password
-    };
-    let success = userController.updateById(user);
-    return res.json({ success });
-});
-authRouter.delete('/:userId', (req, res) => {
-    let success = userController.deleteById(req.params.userId);
-    res.json({ success });
-});
+app.use('/users', authenticateUser, authRouter);
 
 // error handler, dead end - no next
 app.use(function (err, req, res, next) {
@@ -119,7 +93,6 @@ app.use(function (err, req, res, next) {
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Server live on localhost:${PORT}`);
+app.listen(process.env.PORT, () => {
+    console.log(`Server live at http://${process.env.HOST}:${process.env.PORT}`);
 });
